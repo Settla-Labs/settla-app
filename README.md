@@ -77,8 +77,18 @@ Escrow currently accepts USDC. The application has no in-app on-chain refund ope
 - `src/features/wallet/` — wallet providers, network validation, authentication, and transaction signing.
 - `src/features/offer/`, `src/features/order/`, `src/features/escrow/`, `src/features/chat/` — marketplace and trade workflows.
 - `src/features/transactions/`, `src/features/dashboard/`, `src/features/settings/` — wallet activity and account experience.
+- `src/features/user/` — user models, account setup, and shared user context.
+- `src/features/notifications/` — notification state, deduplication, and toast components.
+- `src/features/market-data/` — USDC price fetching, response types, and price formatting.
+- `src/features/paymentMethod/` — payment providers, saved payment methods, and payee-details validation.
+- `src/features/stats/` — marketplace statistics models and data hooks.
+- `src/app/api/market-data/usdc-price/route.ts` — the `GET /api/market-data/usdc-price` server route that proxies USDC/USD prices from CoinGecko.
+- `src/config/demo-mode.ts` — the build-time flag controlling demo-only data and routes.
+- `src/utils/keyboardNavigation.ts` — shared roving-focus keyboard navigation helpers.
 - `src/lib/` — API client and shared integration helpers.
 - `public/` — static assets and Settla brand marks.
+
+Feature folders under `src/features/<name>/` use `models/`, `hooks/`, `components/`, `services/`, `types/`, and `utils/` as needed. Not every feature needs every directory; some also keep React context in `context/` or `presentation/context/`, with tests beside the code or in `__tests__/`.
 
 The public pages in the app also describe the current project: `/info`, `/info/features`, and `/info/security`.
 

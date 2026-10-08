@@ -92,4 +92,22 @@ describe("securitySettingsService", () => {
         expect(result).toHaveLength(1);
         expect(result[0].id).toBe("s1");
     });
+
+    it("returns an empty array when the server has no recorded sessions", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(new Response("[]", { status: 200 }));
+
+        await expect(securitySettingsService.getRecentSessions()).resolves.toEqual([]);
+    });
+
+    it.each([401, 500])("surfaces HTTP %s instead of returning an empty list", async (status) => {
+        global.fetch = vi.fn().mockResolvedValueOnce(new Response("", { status }));
+
+        await expect(securitySettingsService.getRecentSessions()).rejects.toThrow(`HTTP ${status}`);
+    });
+
+    it("surfaces network errors", async () => {
+        global.fetch = vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+        await expect(securitySettingsService.getRecentSessions()).rejects.toThrow("Failed to fetch");
+    });
 });

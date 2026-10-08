@@ -92,12 +92,13 @@ export const securitySettingsService = {
             });
 
             if (!res.ok) {
-                return [];
+                throw new Error(`Failed to load recent sessions (HTTP ${res.status})`);
             }
 
             return (await res.json()) as UserSession[];
-        } catch {
-            return [];
+        } catch (error) {
+            if (error instanceof Error) throw error;
+            throw new Error("Failed to load recent sessions");
         }
     },
 };

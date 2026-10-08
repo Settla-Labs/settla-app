@@ -24,7 +24,22 @@ describe("RecentSessionsList", () => {
 
         render(<RecentSessionsList />);
 
-        expect(screen.getByText("No recent session activity is available.")).toBeTruthy();
+        expect(screen.getByText("No recent sessions recorded yet")).toBeTruthy();
+    });
+
+    it("renders an error state and still allows retry", () => {
+        vi.spyOn(sessionsHooksModule, "useRecentSessions").mockReturnValue({
+            sessions: [],
+            isLoading: false,
+            error: "Failed to load recent sessions (HTTP 500)",
+            reload: mockReload,
+        });
+
+        render(<RecentSessionsList />);
+
+        expect(screen.getByRole("alert").textContent).toContain("Unable to load recent sessions");
+        fireEvent.click(screen.getByRole("button", { name: /refresh recent sessions/i }));
+        expect(mockReload).toHaveBeenCalledTimes(1);
     });
 
     it("renders sessions with current session badge clearly identified", () => {

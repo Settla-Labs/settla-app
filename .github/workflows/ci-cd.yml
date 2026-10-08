@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
 
+# Tests and builds only read the checkout; deploy grants OIDC access in its job.
+permissions:
+  contents: read
+
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   SERVICE_NAME: ikash-frontend-dev
@@ -15,10 +19,12 @@ env:
   WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
   SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
 
+# Intentional runtime caps leave headroom for installs/builds; revisit as the suite or image grows.
 jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -41,6 +47,7 @@ jobs:
     name: Build Docker image
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -58,6 +65,7 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write

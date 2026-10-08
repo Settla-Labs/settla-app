@@ -371,6 +371,26 @@ describe("useEscrowStatusSync", () => {
         expect(fetch).toHaveBeenCalledTimes(3);
     });
 
+    it("continues polling when no socket URL is configured", async () => {
+        mockedCreateEscrowSocket.mockReturnValue(null);
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => baseEvent,
+        } as Response);
+
+        renderHook(() => useEscrowStatusSync(baseOptions));
+
+        await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+        expect(mockedCreateEscrowSocket).toHaveBeenCalledWith("test-token");
+
+        await act(async () => {
+            vi.advanceTimersByTime(7000);
+        });
+
+        expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
     /* ── WebSocket events ──────────────────────────────────────────── */
 
     it("processes escrow-status-updated events from WebSocket", async () => {

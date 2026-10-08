@@ -1,4 +1,5 @@
-import { io, Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+import { createAuthedSocket } from "@/lib/socket";
 import type { EscrowStatusEvent } from "../types/escrow-events.types";
 
 /** Typed socket for escrow real-time events. */
@@ -37,16 +38,8 @@ interface ClientToServerEvents {
  * caller can fall through to polling.
  */
 export function createEscrowSocket(accessToken: string): EscrowSocket | null {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return null;
-
-    return io(apiUrl.replace(/\/$/, ""), {
-        auth: { token: accessToken },
-        autoConnect: false,
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 500,
-        reconnectionDelayMax: 5_000,
-    });
+    return createAuthedSocket(
+        process.env.NEXT_PUBLIC_API_URL,
+        accessToken,
+    ) as EscrowSocket | null;
 }

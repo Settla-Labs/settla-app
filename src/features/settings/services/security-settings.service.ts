@@ -2,18 +2,11 @@ import type {
     SecurityPreferences,
     UserSession,
 } from "../types/security-settings.types";
+import { SECURITY_PREFERENCE_DEFAULTS } from "../constants/security-preference-defaults";
 
 function getApiBaseUrl(): string {
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 }
-
-const DEFAULT_PREFERENCES: SecurityPreferences = {
-    securityUpdates: true,
-    loginAlerts: true,
-    transactionNotifications: true,
-    escrowStatusUpdates: true,
-    emailNotifications: false,
-};
 
 export const securitySettingsService = {
     async getSecuritySettings(accessToken?: string | null): Promise<SecurityPreferences> {
@@ -30,16 +23,16 @@ export const securitySettingsService = {
 
             if (!res.ok) {
                 // If endpoint doesn't exist yet or fails, fallback to defaults/stored prefs
-                return DEFAULT_PREFERENCES;
+                return SECURITY_PREFERENCE_DEFAULTS;
             }
 
             const data = (await res.json()) as Partial<SecurityPreferences>;
             return {
-                ...DEFAULT_PREFERENCES,
+                ...SECURITY_PREFERENCE_DEFAULTS,
                 ...data,
             };
         } catch {
-            return DEFAULT_PREFERENCES;
+            return SECURITY_PREFERENCE_DEFAULTS;
         }
     },
 
@@ -64,7 +57,7 @@ export const securitySettingsService = {
             // If backend is not available or mock environment, simulate update
             if (res.status === 404 || res.status === 501) {
                 return {
-                    ...DEFAULT_PREFERENCES,
+                    ...SECURITY_PREFERENCE_DEFAULTS,
                     ...updates,
                 };
             }
@@ -74,7 +67,7 @@ export const securitySettingsService = {
 
         const data = (await res.json()) as Partial<SecurityPreferences>;
         return {
-            ...DEFAULT_PREFERENCES,
+            ...SECURITY_PREFERENCE_DEFAULTS,
             ...data,
         };
     },

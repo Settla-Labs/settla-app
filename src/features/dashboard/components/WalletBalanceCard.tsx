@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 interface WalletBalanceCardProps {
     totalBalance: string;
     currency: string;
+    unpricedAssetCount: number;
     isLoading?: boolean;
     error?: string | null;
     onRetry?: () => void;
@@ -14,14 +15,17 @@ interface WalletBalanceCardProps {
 export function WalletBalanceCard({
     totalBalance,
     currency,
+    unpricedAssetCount,
     isLoading = false,
     error = null,
     onRetry,
     actions,
 }: WalletBalanceCardProps) {
+    const isPartialBalance = !isLoading && !error && unpricedAssetCount > 0;
+
     return (
         <section
-            aria-label="Total balance"
+            aria-label={isPartialBalance ? "Partial balance" : "Total balance"}
             className="w-full h-full flex flex-col justify-between gap-6"
         >
             <div
@@ -35,7 +39,7 @@ export function WalletBalanceCard({
             >
                 <div className="relative">
                     <p className="text-[11px] md:text-[13px] tracking-[0.18em] text-[#B8B4B0] uppercase mb-2 md:mb-3">
-                        Total Balance
+                        {isPartialBalance ? "Partial Balance" : "Total Balance"}
                     </p>
 
                     {isLoading ? (
@@ -72,6 +76,12 @@ export function WalletBalanceCard({
                                 {currency}
                             </span>
                         </div>
+                    )}
+
+                    {isPartialBalance && (
+                        <p className="mt-3 text-sm text-[#D6D2CE]">
+                            {unpricedAssetCount} {unpricedAssetCount === 1 ? "asset is" : "assets are"} excluded from this total because a {currency} price is unavailable.
+                        </p>
                     )}
                 </div>
             </div>

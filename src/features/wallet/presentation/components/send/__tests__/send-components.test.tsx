@@ -166,7 +166,8 @@ describe("Send Flow Presentation Components", () => {
 
       expect(screen.getByText("alex.localsettle")).toBeTruthy();
       expect(screen.getByText(/25\.00.*USDC/)).toBeTruthy();
-      expect(screen.getByText(/0\.075.*USDC/)).toBeTruthy();
+      // Intl formatting uses the system locale's decimal separator.
+      expect(screen.getByText(/0[.,]075.*USDC/)).toBeTruthy();
 
       fireEvent.click(screen.getByRole("button", { name: /Back/i }));
       expect(onBack).toHaveBeenCalledTimes(1);

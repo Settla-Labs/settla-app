@@ -89,6 +89,7 @@ export function WalletDashboard() {
                     <WalletBalanceCard
                         totalBalance={viewModel.totalBalance}
                         currency={viewModel.currency}
+                        unpricedAssetCount={viewModel.unpricedAssetCount}
                         isLoading={isLoading}
                         error={error}
                         onRetry={retry}

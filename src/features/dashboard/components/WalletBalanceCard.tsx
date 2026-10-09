@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 interface WalletBalanceCardProps {
     totalBalance: string;
     currency: string;
+    unpricedAssetCount?: number;
     isLoading?: boolean;
     error?: string | null;
     onRetry?: () => void;
@@ -14,14 +15,17 @@ interface WalletBalanceCardProps {
 export function WalletBalanceCard({
     totalBalance,
     currency,
+    unpricedAssetCount = 0,
     isLoading = false,
     error = null,
     onRetry,
     actions,
 }: WalletBalanceCardProps) {
+    const hasUnpricedAssets = !isLoading && !error && unpricedAssetCount > 0;
+
     return (
         <section
-            aria-label="Total balance"
+            aria-label={hasUnpricedAssets ? "Priced assets total" : "Total balance"}
             className="w-full h-full flex flex-col justify-between gap-6"
         >
             <div
@@ -35,7 +39,7 @@ export function WalletBalanceCard({
             >
                 <div className="relative">
                     <p className="text-[11px] md:text-[13px] tracking-[0.18em] text-[#B8B4B0] uppercase mb-2 md:mb-3">
-                        Total Balance
+                        {hasUnpricedAssets ? "Priced Assets Total" : "Total Balance"}
                     </p>
 
                     {isLoading ? (
@@ -64,14 +68,21 @@ export function WalletBalanceCard({
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
-                            <span className="text-[36px] sm:text-[48px] md:text-[64px] font-bold text-white leading-none tracking-tight tabular-nums break-all">
-                                {totalBalance}
-                            </span>
-                            <span className="text-[#D6D2CE] text-[16px] md:text-[22px] font-medium">
-                                {currency}
-                            </span>
-                        </div>
+                        <>
+                            <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
+                                <span className="text-[36px] sm:text-[48px] md:text-[64px] font-bold text-white leading-none tracking-tight tabular-nums break-all">
+                                    {totalBalance}
+                                </span>
+                                <span className="text-[#D6D2CE] text-[16px] md:text-[22px] font-medium">
+                                    {currency}
+                                </span>
+                            </div>
+                            {hasUnpricedAssets && (
+                                <p className="mt-3 text-sm text-[#B8B4B0]">
+                                    Excludes {unpricedAssetCount} held {unpricedAssetCount === 1 ? "asset" : "assets"} with no {currency} price.
+                                </p>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

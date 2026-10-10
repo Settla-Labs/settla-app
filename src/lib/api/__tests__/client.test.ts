@@ -17,6 +17,7 @@ function jsonResponse(body: unknown, status = 200): Response {
         ok: status >= 200 && status < 300,
         status,
         json: async () => body,
+        text: async () => JSON.stringify(body),
     } as Response;
 }
 
@@ -122,6 +123,32 @@ describe("apiFetch", () => {
             const result = await apiFetch("/test", { method: "DELETE" });
             expect(result).toBeUndefined();
             expect(lastRequest()[1].credentials).toBe("include");
+        });
+
+        it.each([200, 202])("returns undefined for an empty %i response body", async (status) => {
+            const response = {
+                ok: true,
+                status,
+                text: vi.fn().mockResolvedValue(""),
+                json: vi.fn().mockRejectedValue(new SyntaxError("Unexpected end of JSON input")),
+            } as unknown as Response;
+            mockFetch.mockResolvedValueOnce(response);
+
+            await expect(apiFetch<void>("/test")).resolves.toBeUndefined();
+            expect(response.text).toHaveBeenCalledOnce();
+            expect(response.json).not.toHaveBeenCalled();
+        });
+
+        it("still parses non-empty JSON in a successful response", async () => {
+            mockFetch.mockResolvedValueOnce(jsonResponse({ id: 42 }));
+
+            await expect(apiFetch<{ id: number }>("/test")).resolves.toEqual({ id: 42 });
+        });
+
+        it("rejects invalid, non-empty JSON rather than masking malformed responses", async () => {
+            mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "not-json" } as Response);
+
+            await expect(apiFetch("/test")).rejects.toThrow(SyntaxError);
         });
     });
     describe("authentication", () => {

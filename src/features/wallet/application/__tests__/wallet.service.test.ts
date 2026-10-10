@@ -112,11 +112,11 @@ describe("walletService", () => {
             const queue = [...responses];
             fetchMock.mockImplementation((url: string) => {
                 if (String(url).endsWith("/auth/csrf")) {
-                    return Promise.resolve({ ok: true, json: async () => ({ csrfToken: "csrf-token" }) });
+                    return Promise.resolve(new Response(JSON.stringify({ csrfToken: "csrf-token" })));
                 }
                 const next = queue.shift();
                 if (!next) return Promise.reject(new Error(`Unexpected fetch: ${String(url)}`));
-                return Promise.resolve(next);
+                return next.json().then((body) => new Response(JSON.stringify(body), { status: next.ok ? 200 : 500 }));
             });
         }
 

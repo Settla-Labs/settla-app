@@ -135,5 +135,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
         return undefined as T;
     }
 
-    return (await res.json()) as T;
+    const responseBody = await res.text();
+    if (responseBody.trim().length === 0) {
+        return undefined as T;
+    }
+
+    return JSON.parse(responseBody) as T;
 }

@@ -2,35 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@/features/user/presentation/context/UserContext";
-import { useWalletContext } from "@/features/wallet/presentation/context/WalletContext";
 import { securitySettingsService } from "../services/security-settings.service";
 import type { UserSession } from "../types/security-settings.types";
 
-function getBrowserAndDevice(): { device: string; browser: string } {
-    if (typeof window === "undefined") {
-        return { device: "Desktop", browser: "Web Browser" };
-    }
-
-    const ua = navigator.userAgent;
-    let browser = "Web Browser";
-    if (ua.includes("Firefox/")) browser = "Firefox";
-    else if (ua.includes("Chrome/") && !ua.includes("Edg/")) browser = "Chrome";
-    else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
-    else if (ua.includes("Edg/")) browser = "Edge";
-
-    let device = "Desktop";
-    if (/Android/i.test(ua)) device = "Android Device";
-    else if (/iPhone|iPad|iPod/i.test(ua)) device = "iOS Device";
-    else if (/Windows/i.test(ua)) device = "Windows PC";
-    else if (/Macintosh/i.test(ua)) device = "macOS";
-    else if (/Linux/i.test(ua)) device = "Linux PC";
-
-    return { device, browser };
-}
-
 export function useRecentSessions() {
-    const { accessToken, currentUser } = useUser();
-    const { isConnected } = useWalletContext();
+    const { accessToken } = useUser();
 
     const [sessions, setSessions] = useState<UserSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +16,7 @@ export function useRecentSessions() {
     const loadSessions = useCallback(async () => {
         setIsLoading(true);
         setError(null);
+        setSessions([]);
         try {
             const result = await securitySettingsService.getRecentSessions(accessToken);
             setIsFallback(result.source === "unsupported-fallback");
@@ -61,6 +38,8 @@ export function useRecentSessions() {
             } else {
                 setSessions([]);
             }
+            const data = await securitySettingsService.getRecentSessions(accessToken);
+            setSessions(data);
         } catch (err) {
             setSessions([]);
             setIsFallback(false);
@@ -69,7 +48,7 @@ export function useRecentSessions() {
         } finally {
             setIsLoading(false);
         }
-    }, [accessToken, currentUser, isConnected]);
+    }, [accessToken]);
 
     useEffect(() => {
         void loadSessions();

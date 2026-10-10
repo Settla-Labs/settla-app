@@ -75,10 +75,12 @@ export function RecentSessionsList() {
                         >
                             Try again
                         </button>
+                    <div className="py-8 text-center text-sm text-[#F87171]" role="alert">
+                        Unable to load recent sessions. Please try again.
                     </div>
                 ) : sessions.length === 0 ? (
                     <div className="py-8 text-center text-sm text-[#9BABB7]">
-                        No recent session activity is available.
+                        No recent sessions recorded yet
                     </div>
                 ) : (
                     <div className="space-y-3">

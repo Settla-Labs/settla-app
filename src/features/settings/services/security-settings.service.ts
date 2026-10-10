@@ -116,6 +116,8 @@ export const securitySettingsService = {
         if (!res.ok) {
             if (UNSUPPORTED_STATUSES.has(res.status)) {
                 return { sessions: [], source: "unsupported-fallback" };
+            if (!res.ok) {
+                throw new Error(`Failed to load recent sessions (HTTP ${res.status})`);
             }
             throw await getResponseError(res, "Failed to load recent sessions");
         }
@@ -123,6 +125,10 @@ export const securitySettingsService = {
         const data: unknown = await res.json();
         if (!Array.isArray(data)) {
             throw new Error("Invalid recent sessions response");
+            return (await res.json()) as UserSession[];
+        } catch (error) {
+            if (error instanceof Error) throw error;
+            throw new Error("Failed to load recent sessions");
         }
 
         return { sessions: data as UserSession[], source: "server" };

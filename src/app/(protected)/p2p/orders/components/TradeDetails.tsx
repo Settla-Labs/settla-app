@@ -16,7 +16,6 @@ export interface TradeDetailsProps {
     accountIdentifier?: string;
     accountOwner?: string;
     counterpartyName?: string;
-    counterpartyRate?: string;
     counterpartyKyc?: boolean;
     counterpartyProfileImageUrl?: string;
 }
@@ -34,7 +33,6 @@ export function TradeDetails({
     accountIdentifier = "N/A",
     accountOwner = "QuantVortex_LP",
     counterpartyName = "QuantVortex_LP",
-    counterpartyRate = "99.8%",
     counterpartyKyc = true,
     counterpartyProfileImageUrl
 }: TradeDetailsProps) {
@@ -234,9 +232,11 @@ export function TradeDetails({
                                     </span>
                                 )}
                             </div>
-                            <span className="text-[#55D6BE] text-[10px] font-bold leading-[15px] tracking-[0.5px] uppercase">
-                                Verified Merchant • {counterpartyRate} completion
-                            </span>
+                            {counterpartyKyc && (
+                                <span className="text-[#55D6BE] text-[10px] font-bold leading-[15px] tracking-[0.5px] uppercase">
+                                    Verified Merchant
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

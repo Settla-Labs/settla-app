@@ -22,6 +22,7 @@ vi.mock("jspdf", () => {
     // Attach to globalThis so tests can assert calls
     (globalThis as unknown as { _mockSave: typeof mockSave })._mockSave = mockSave;
     (globalThis as unknown as { _mockLink: typeof mockLink })._mockLink = mockLink;
+    (globalThis as unknown as { _mockSetFillColor: typeof mockSetFillColor })._mockSetFillColor = mockSetFillColor;
 
     class MockJsPDF {
         save = mockSave;
@@ -289,6 +290,30 @@ describe("PDF Export Utility", () => {
         });
 
         expect((globalThis as unknown as { _mockSave: typeof mockSave })._mockSave).toHaveBeenCalledWith("test-filename.pdf");
+    });
+
+    it("applies Settla primary teal brand color #55D6BE (85, 214, 190) to accent bar (#109)", async () => {
+        const mockSetFillColor = (globalThis as unknown as { _mockSetFillColor: any })._mockSetFillColor;
+        mockSetFillColor.mockClear();
+
+        const records = transactionExportService.mapOrdersToExportRecords(MOCK_ORDERS, MOCK_CURRENT_USER_ID);
+        await exportTransactionsPdf(records, "test-accent.pdf");
+
+        // The accent bar is drawn first with Settla primary teal brand color
+        expect(mockSetFillColor).toHaveBeenCalledWith(85, 214, 190);
+    });
+
+    it("maps explorer URLs correctly for mainnet and testnet networks (#110)", async () => {
+        const { getExplorerUrl } = await import("../utils/export-transactions-pdf");
+
+        // Both 'mainnet' and 'public' resolve to stellar.expert/explorer/public
+        expect(getExplorerUrl("tx-123", "mainnet")).toBe("https://stellar.expert/explorer/public/tx/tx-123");
+        expect(getExplorerUrl("tx-123", "public")).toBe("https://stellar.expert/explorer/public/tx/tx-123");
+        expect(getExplorerUrl("tx-123", "PUBLIC")).toBe("https://stellar.expert/explorer/public/tx/tx-123");
+
+        // Other values resolve to testnet explorer
+        expect(getExplorerUrl("tx-123", "testnet")).toBe("https://stellar.expert/explorer/testnet/tx/tx-123");
+        expect(getExplorerUrl("tx-123", "TESTNET")).toBe("https://stellar.expert/explorer/testnet/tx/tx-123");
     });
 });
 

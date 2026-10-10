@@ -1,6 +1,8 @@
 import { ExportTransactionRecord, ExportFilters } from "../types/transaction-export.types";
+import { getExpectedStellarNetwork } from "@/features/wallet/application/stellar-wallet-kit.service";
 
-const stellarNetwork = process.env.NEXT_PUBLIC_STELLAR_NETWORK || "TESTNET";
+/** Settla primary teal brand accent color: #55D6BE -> rgb(85, 214, 190) */
+export const SETTLA_BRAND_TEAL_RGB: [number, number, number] = [85, 214, 190];
 
 function shortenHash(hash: string): string {
     if (!hash) return "";
@@ -8,9 +10,11 @@ function shortenHash(hash: string): string {
     return `${hash.slice(0, 5)}...${hash.slice(-5)}`;
 }
 
-function getExplorerUrl(hash: string, network: string): string {
-    const net = (network || "TESTNET").toUpperCase();
-    if (net === "PUBLIC") {
+export function getExplorerUrl(hash: string, network?: string): string {
+    const net = network
+        ? (network.toLowerCase() === "mainnet" || network.toLowerCase() === "public" ? "mainnet" : "testnet")
+        : getExpectedStellarNetwork();
+    if (net === "mainnet") {
         return `https://stellar.expert/explorer/public/tx/${hash}`;
     }
     return `https://stellar.expert/explorer/testnet/tx/${hash}`;
@@ -41,7 +45,7 @@ export async function exportTransactionsPdf(
 
     // Draw header / brand
     // Accent color bar: #55D6BE
-    doc.setFillColor(206, 241, 0); // LocalSettle primary color
+    doc.setFillColor(...SETTLA_BRAND_TEAL_RGB); // Settla primary brand color #55D6BE
     doc.rect(margin, margin, printableWidth, 4, "F");
 
     // Title
@@ -73,10 +77,13 @@ export async function exportTransactionsPdf(
     doc.text(today, margin + 20, margin + 28);
 
     // Filters summary
+    const currentNetwork = getExpectedStellarNetwork();
+    const networkDisplay = currentNetwork === "mainnet" ? "PUBLIC" : "TESTNET";
+
     doc.setFont("helvetica", "bold");
     doc.text("Network:", margin, margin + 33);
     doc.setFont("helvetica", "normal");
-    doc.text(stellarNetwork, margin + 20, margin + 33);
+    doc.text(networkDisplay, margin + 20, margin + 33);
 
     // Add filter detail strings
     let filterString = "Status: " + (filters?.status || "All") + " | Role: " + (filters?.operation || "All");
@@ -201,7 +208,7 @@ export async function exportTransactionsPdf(
         // 7. Clickable Transaction Hash
         if (record.transactionHash) {
             const shortHash = shortenHash(record.transactionHash);
-            const url = getExplorerUrl(record.transactionHash, stellarNetwork);
+            const url = getExplorerUrl(record.transactionHash, currentNetwork);
             doc.setTextColor(2, 132, 199); // Blue-600
             doc.text(shortHash, currentX + 2, y + 5);
             // Clickable link

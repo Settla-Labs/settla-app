@@ -276,6 +276,32 @@ describe("useEscrowStatusSync", () => {
         });
     });
 
+    it.each([
+        ["missing escrowId", { ...baseEvent, escrowId: undefined }],
+        ["missing updatedAt", { ...baseEvent, updatedAt: undefined }],
+        ["an unknown status", { ...baseEvent, status: "settled" }],
+    ])(
+        "rejects a polling payload with %s",
+        async (_description, malformedEvent) => {
+            (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => malformedEvent,
+            } as Response);
+
+            const onStatusChange = vi.fn();
+            const { result } = renderHook(() =>
+                useEscrowStatusSync({ ...baseOptions, onStatusChange }),
+            );
+
+            await waitFor(() => {
+                expect(result.current.syncState.status).toBe("error");
+            });
+            expect(result.current.currentStatus).toBeNull();
+            expect(onStatusChange).not.toHaveBeenCalled();
+        },
+    );
+
     /* ── Cleanup on unmount ────────────────────────────────────────── */
 
     it("cleans up socket, timers, and pending requests on unmount", async () => {
@@ -449,6 +475,42 @@ describe("useEscrowStatusSync", () => {
         });
 
         // Should not be called again — event was for wrong order
+        expect(onStatusChange).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a malformed WebSocket event without notifying consumers", async () => {
+        const { socket, handlers } = createMockSocket();
+        mockedCreateEscrowSocket.mockReturnValue(
+            socket as unknown as ReturnType<
+                typeof EscrowSocketModule.createEscrowSocket
+            >,
+        );
+
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => baseEvent,
+        } as Response);
+
+        const onStatusChange = vi.fn();
+        const { result } = renderHook(() =>
+            useEscrowStatusSync({ ...baseOptions, onStatusChange }),
+        );
+
+        await waitFor(() => {
+            expect(onStatusChange).toHaveBeenCalledTimes(1);
+        });
+
+        act(() => {
+            handlers["escrow-status-updated"]?.({
+                ...baseEvent,
+                eventId: "evt-malformed",
+                status: "settled",
+            });
+        });
+
+        expect(result.current.syncState.status).toBe("error");
+        expect(result.current.currentStatus).toBe("funded");
         expect(onStatusChange).toHaveBeenCalledTimes(1);
     });
 

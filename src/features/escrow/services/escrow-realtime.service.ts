@@ -1,6 +1,4 @@
 import { io, Socket } from "socket.io-client";
-import type { EscrowStatusEvent } from "../types/escrow-events.types";
-
 /** Typed socket for escrow real-time events. */
 export type EscrowSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -12,7 +10,8 @@ export type EscrowSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
  * Synchronization" issue.
  */
 interface ServerToClientEvents {
-    "escrow-status-updated": (event: EscrowStatusEvent) => void;
+    /** Payload remains unknown until decoded at the consumer boundary. */
+    "escrow-status-updated": (event: unknown) => void;
     "escrow-error": (error: { code: string; message: string }) => void;
 }
 

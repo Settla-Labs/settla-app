@@ -9,6 +9,7 @@ import type {
     EscrowStatusEvent,
     EscrowSyncState,
 } from "../types/escrow-events.types";
+import { decodeEscrowStatusEvent } from "../types/escrow-events.types";
 import {
     deduplicationKey,
     isTerminalStatus,
@@ -146,7 +147,14 @@ export function useEscrowStatusSync({
                 return;
             }
 
-            const data: EscrowStatusEvent = await res.json();
+            const data = decodeEscrowStatusEvent(await res.json());
+            if (!data) {
+                setSyncState((prev) => ({
+                    ...prev,
+                    status: "error",
+                }));
+                return;
+            }
             processEvent(data);
 
             setSyncState((prev) => ({
@@ -215,10 +223,16 @@ export function useEscrowStatusSync({
         });
 
         socket.on("escrow-status-updated", (event) => {
+            const data = decodeEscrowStatusEvent(event);
+            if (!data) {
+                setSyncState((prev) => ({ ...prev, status: "error" }));
+                return;
+            }
+
             // Only process events that belong to the current order/escrow.
-            if (event.orderId !== orderId) return;
-            if (escrowId && event.escrowId !== escrowId) return;
-            processEvent(event);
+            if (data.orderId !== orderId) return;
+            if (escrowId && data.escrowId !== escrowId) return;
+            processEvent(data);
         });
 
         socket.on("escrow-error", () => {

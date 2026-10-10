@@ -1,6 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api/client";
+
+const PAGE_SIZE = 100;
+
+async function fetchActiveOfferCount(
+  type: "buy" | "sell",
+  signal: AbortSignal,
+): Promise<number> {
+  let skip = 0;
+  let total = 0;
+
+  for (;;) {
+    const params = new URLSearchParams({
+      type,
+      status: "active",
+      skip: String(skip),
+      take: String(PAGE_SIZE),
+    });
+    const page = await apiFetch<unknown[]>(`/offers?${params}`, { signal });
+
+    if (!Array.isArray(page)) {
+      throw new Error("Offer list response must be an array");
+    }
+
+    total += page.length;
+    if (page.length < PAGE_SIZE) return total;
+    skip += PAGE_SIZE;
+  }
+}
 
 interface OfferCountsResult {
   buyCount: number | null;
@@ -11,66 +40,42 @@ interface OfferCountsResult {
 /**
  * Fetches the total number of active buy and sell offers from the backend.
  *
- * Two parallel requests are made — one per type — because the backend does
- * not currently expose a summary/count endpoint.  Only non-executed offers
- * are counted (matching the filter applied in TradeDashboard).
+ * The backend does not expose a summary/count endpoint, so each type is read
+ * through every page of the authenticated `/offers` contract. The backend's
+ * `status=active` filter defines which offers are included; the client only
+ * sums page lengths and never infers active state from response objects.
  */
 export function useOfferCounts(): OfferCountsResult {
   const [buyCount, setBuyCount] = useState<number | null>(null);
   const [sellCount, setSellCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cancel stale requests on unmount or re-fetch
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setIsLoading(true);
-
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-      const [buyRes, sellRes] = await Promise.all([
-        fetch(`${baseUrl}/offers?type=buy`, { signal: controller.signal }),
-        fetch(`${baseUrl}/offers?type=sell`, { signal: controller.signal }),
-      ]);
-
-      if (!buyRes.ok || !sellRes.ok) throw new Error("Failed to fetch offer counts");
-
-      const [buyData, sellData]: [unknown[], unknown[]] = await Promise.all([
-        buyRes.json(),
-        sellRes.json(),
-      ]);
-
-      // Count only non-executed offers, matching the P2P dashboard filter
-      const countActive = (arr: unknown[]) =>
-        arr.filter(
-          (o) => o !== null && typeof o === "object" && !(o as Record<string, unknown>).executed
-        ).length;
-
-      if (abortRef.current === controller) {
-        setBuyCount(countActive(buyData));
-        setSellCount(countActive(sellData));
-        setIsLoading(false);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      console.error("[useOfferCounts]", err);
-      if (abortRef.current === controller) {
-        setIsLoading(false);
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    fetchCounts();
-    return () => abortRef.current?.abort();
-  }, [fetchCounts]);
+    const controller = new AbortController();
+    let cancelled = false;
+
+    void Promise.all([
+      fetchActiveOfferCount("buy", controller.signal),
+      fetchActiveOfferCount("sell", controller.signal),
+    ])
+      .then(([nextBuyCount, nextSellCount]) => {
+        if (cancelled) return;
+        setBuyCount(nextBuyCount);
+        setSellCount(nextSellCount);
+        setIsLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        console.error("[useOfferCounts]", err);
+        if (cancelled) return;
+        setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
 
   return { buyCount, sellCount, isLoading };
 }

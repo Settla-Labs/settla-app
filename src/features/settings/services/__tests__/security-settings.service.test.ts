@@ -1,9 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { securitySettingsService } from "../security-settings.service";
+import { SECURITY_PREFERENCE_DEFAULTS } from "../../constants/security-preference-defaults";
 
 describe("securitySettingsService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it("uses the shared initial preferences when loading fails", async () => {
+        global.fetch = vi.fn().mockRejectedValueOnce(new Error("offline"));
+
+        await expect(securitySettingsService.getSecuritySettings()).resolves.toEqual(
+            SECURITY_PREFERENCE_DEFAULTS,
+        );
+        expect(SECURITY_PREFERENCE_DEFAULTS).toEqual({
+            securityUpdates: true,
+            loginAlerts: true,
+            transactionNotifications: true,
+            escrowStatusUpdates: true,
+            emailNotifications: false,
+        });
+    });
+
+    it("preserves unspecified defaults when the API returns partial preferences", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(JSON.stringify({ loginAlerts: false }), { status: 200 }),
+        );
+
+        await expect(securitySettingsService.getSecuritySettings()).resolves.toEqual({
+            ...SECURITY_PREFERENCE_DEFAULTS,
+            loginAlerts: false,
+        });
     });
 
     it("fetches security settings with bearer token", async () => {

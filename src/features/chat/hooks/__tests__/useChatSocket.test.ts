@@ -103,6 +103,17 @@ describe("useChatSocket", () => {
         expect(result.current.status).toBe("disconnected");
     });
 
+    it("stays disconnected when the shared socket factory has no URL", () => {
+        mockedCreateChatSocket.mockReturnValue(null);
+
+        const { result } = renderHook((props) => useChatSocket(props), {
+            initialProps: baseOptions,
+        });
+
+        expect(result.current.status).toBe("disconnected");
+        expect(mockedCreateChatSocket).toHaveBeenCalledWith("jwt-token");
+    });
+
     it("creates a socket, connects, and reaches connected after joining the order", async () => {
         const { socket, handlers, emitCalls } = createMockSocket();
         mockedCreateChatSocket.mockReturnValue(socket as unknown as ReturnType<typeof createChatSocket>);

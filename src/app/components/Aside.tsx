@@ -1,8 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { useWallet } from '@/features/wallet'
 import { useUser } from '@/features/user/presentation/context/UserContext'
 import { LayoutGrid, ArrowLeftRight, Database, Settings } from 'lucide-react'
 import { MobileBottomNav } from './MobileBottomNav'
@@ -15,16 +14,7 @@ const navLinks = [
 
 export function Aside() {
     const pathname = usePathname()
-    const router = useRouter()
-    const { disconnect } = useWallet()
-    const { setCurrentUser, setAccessToken } = useUser()
-
-    const handleLogout = () => {
-        disconnect()
-        setCurrentUser(null)
-        setAccessToken(null)
-        router.push('/')
-    }
+    const { logout } = useUser()
 
     return (
         <>
@@ -64,7 +54,7 @@ export function Aside() {
                         <span className='text-[18px]'>Settings</span>
                     </Link>
                     <button
-                        onClick={handleLogout}
+                        onClick={() => logout()}
                         className="flex items-center gap-3 px-3 py-2 rounded-md text-[#9BABB7] cursor-pointer transition-all duration-200 ease-in-out hover:bg-[#0D1D2C] hover:text-white"
                     >
                         <Image src='/logout-icon.svg' width={20} height={20} alt='logout' />

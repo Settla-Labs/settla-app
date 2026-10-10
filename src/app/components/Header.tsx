@@ -1,10 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, Settings } from 'lucide-react'
-import { useWallet } from '@/features/wallet'
 import { useUser } from '@/features/user/presentation/context/UserContext'
 import { HeaderUser } from './HeaderUser'
 
@@ -17,17 +15,8 @@ type HeaderProps = {
 }
 
 export function Header({ description, title, name, mobileLabel, showUser = true }: HeaderProps) {
-    const router = useRouter()
-    const { disconnect } = useWallet()
-    const { setCurrentUser, setAccessToken } = useUser()
+    const { logout } = useUser()
     const [menuOpen, setMenuOpen] = useState(false)
-
-    const handleLogout = () => {
-        disconnect()
-        setCurrentUser(null)
-        setAccessToken(null)
-        router.push('/')
-    }
 
     return (
         <>
@@ -87,7 +76,7 @@ export function Header({ description, title, name, mobileLabel, showUser = true 
                             Settings
                         </Link>
                         <button
-                            onClick={() => { setMenuOpen(false); handleLogout() }}
+                            onClick={() => { setMenuOpen(false); logout() }}
                             className="flex items-center gap-3 text-white text-[17px] hover:text-[#55D6BE] transition-colors"
                         >
                             <Image src='/logout-icon.svg' width={24} height={24} alt='logout' />

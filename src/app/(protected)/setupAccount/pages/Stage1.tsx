@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import userIcon from '../../../../../public/user-icon-selected.svg'
 import { Button } from '../components/Button'
@@ -15,18 +15,43 @@ export default function Stage1({ onNext }: Stage1Props) {
     const [alias, setAlias] = useState('');
     const [email, setEmail] = useState('');
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+    const [aliasCheckError, setAliasCheckError] = useState<string | null>(null);
+    const aliasCheckSequence = useRef(0);
     const { checkAliasAvailable } = useUsers();
 
     useEffect(() => {
-        if (!alias) return;
+        const normalizedAlias = alias.trim();
+        if (!normalizedAlias) return;
+
+        const checkSequence = ++aliasCheckSequence.current;
 
         const timer = setTimeout(async () => {
-            const { available } = await checkAliasAvailable(alias);
-            setIsAvailable(available);
+            try {
+                const { available } = await checkAliasAvailable(normalizedAlias);
+                if (aliasCheckSequence.current !== checkSequence) return;
+                setIsAvailable(available);
+                setAliasCheckError(null);
+            } catch {
+                if (aliasCheckSequence.current !== checkSequence) return;
+                setIsAvailable(null);
+                setAliasCheckError('Could not check availability');
+            }
         }, 500);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            if (aliasCheckSequence.current === checkSequence) {
+                aliasCheckSequence.current += 1;
+            }
+        };
     }, [alias, checkAliasAvailable]);
+
+    const handleAliasChange = (nextAlias: string) => {
+        aliasCheckSequence.current += 1;
+        setAlias(nextAlias);
+        setIsAvailable(null);
+        setAliasCheckError(null);
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,28 +73,39 @@ export default function Stage1({ onNext }: Stage1Props) {
 
                 <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-center">
-                        <label className="text-[#CBD5E1] font-semibold text-sm">Username</label>
+                        <label htmlFor="setup-alias" className="text-[#CBD5E1] font-semibold text-sm">Username</label>
                         {isAvailable !== null && alias && (
-                            <span className={`text-xs font-medium ${isAvailable ? 'text-[#55D6BE]' : 'text-red-400'}`}>
+                            <span role="status" className={`text-xs font-medium ${isAvailable ? 'text-[#55D6BE]' : 'text-red-400'}`}>
                                 {isAvailable ? '✓ Available' : '✗ Already taken'}
+                            </span>
+                        )}
+                        {aliasCheckError && alias && (
+                            <span role="alert" className="text-xs font-medium text-amber-400">
+                                {aliasCheckError}
                             </span>
                         )}
                     </div>
                     <input
+                        id="setup-alias"
                         type="text"
                         value={alias}
-                        onChange={(e) => setAlias(e.target.value)}
+                        onChange={(e) => handleAliasChange(e.target.value)}
                         placeholder="e.g. Satoshi_Master"
                         className={`bg-[#08152180] text-[#F1F5F9] text-[16px] rounded-xl px-4 py-3 outline-none border transition-colors ${
-                            isAvailable === false ? 'border-red-400' : 'border-[#263949] focus:border-[#55D6BE]'
+                            isAvailable === false
+                                ? 'border-red-400'
+                                : aliasCheckError
+                                    ? 'border-amber-400'
+                                    : 'border-[#263949] focus:border-[#55D6BE]'
                         }`}
                         required
                     />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <label className="text-[#CBD5E1] font-semibold text-sm">Email Address</label>
+                    <label htmlFor="setup-email" className="text-[#CBD5E1] font-semibold text-sm">Email Address</label>
                     <input
+                        id="setup-email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}

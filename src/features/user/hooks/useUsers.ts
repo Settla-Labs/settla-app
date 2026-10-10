@@ -107,14 +107,13 @@ export function useUsers() {
         }
     };
 
-    const checkAliasAvailable = async (alias: string): Promise<{ available: boolean }> => {
-        try {
-            return await apiFetch<{ available: boolean }>(`/users/validate-alias?alias=${alias}`);
-        } catch (error) {
-            console.error('Error in checkAliasAvailable:', error);
-            return { available: false };
-        }
-    };
+    const checkAliasAvailable = useCallback(
+        (alias: string): Promise<{ available: boolean }> =>
+            apiFetch<{ available: boolean }>(
+                `/users/validate-alias?alias=${encodeURIComponent(alias)}`,
+            ),
+        [],
+    );
 
     const setupAccount = async (userId: string, payload: SetupAccountPayload): Promise<Users | null> => {
         setSetupError(null);

@@ -21,6 +21,7 @@ import { useEscrowStatusSync } from "@/features/escrow/hooks/useEscrowStatusSync
 import { ArrowLeft, AlertTriangle, Ban, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useOrderCountdown } from "@/features/order/hooks/useOrderCountdown";
+import { resolvePaymentDetails } from "./payment-details";
 
 interface PageProps {
     params: Promise<{ orderId: string }>;
@@ -199,19 +200,7 @@ export default function TradePage({ params }: PageProps) {
         paymentType = "bank";
     }
 
-    const paymentMethodLabel = paymentMethodObj?.payment_provider?.name || paymentMethodObj?.bankName || "Bank Transfer SEPA";
-    
-    const accountIdentifier = 
-        paymentMethodObj?.accountIdentifier || 
-        paymentMethodObj?.account_identifier || 
-        paymentMethodObj?.accountDetails || 
-        "No details provided";
-        
-    const accountOwner = 
-        paymentMethodObj?.beneficiaryName || 
-        paymentMethodObj?.beneficiary_name || 
-        order.seller?.alias || 
-        "QuantVortex_LP";
+    const paymentDetails = resolvePaymentDetails(paymentMethodObj);
 
     const escrowId = order.escrow?.escrowId;
     const escrowStatus = order.escrow?.escrowStatus || "pending";
@@ -281,10 +270,10 @@ export default function TradePage({ params }: PageProps) {
                                                 assetCode={order.offer?.assetCode || "USDC"}
                                                 unitPrice={priceVal}
                                                 total={totalVal}
-                                                paymentMethod={paymentMethodLabel}
+                                                paymentMethod={paymentDetails.label}
                                                 paymentType={paymentType}
-                                                accountIdentifier={accountIdentifier}
-                                                accountOwner={accountOwner}
+                                                accountIdentifier={paymentDetails.accountIdentifier}
+                                                accountOwner={paymentDetails.accountOwner}
                                                 counterpartyName={counterpartyUser?.alias || "Seller"}
                                                 counterpartyKyc={counterpartyUser?.kycStatus === "approved"}
                                                 counterpartyProfileImageUrl={counterpartyUser?.profileImageUrl}
@@ -340,10 +329,10 @@ export default function TradePage({ params }: PageProps) {
                                             assetCode={order.offer?.assetCode || "USDC"}
                                             unitPrice={priceVal}
                                             total={totalVal}
-                                            paymentMethod={paymentMethodLabel}
+                                            paymentMethod={paymentDetails.label}
                                             paymentType={paymentType}
-                                            accountIdentifier={accountIdentifier}
-                                            accountOwner={accountOwner}
+                                            accountIdentifier={paymentDetails.accountIdentifier}
+                                            accountOwner={paymentDetails.accountOwner}
                                             counterpartyName={counterpartyUser?.alias || "Buyer"}
                                             counterpartyKyc={counterpartyUser?.kycStatus === "approved"}
                                         />
@@ -359,6 +348,7 @@ export default function TradePage({ params }: PageProps) {
                                             canCancel={canCancel}
                                             isCancelling={isCancelling}
                                             onCancelOrder={() => setShowCancelModal(true)}
+                                            paymentDetailsAvailable={paymentDetails.available}
                                         />
                                     </div>
 
@@ -366,13 +356,21 @@ export default function TradePage({ params }: PageProps) {
                                         <div className="flex items-center gap-2">
                                             <AlertTriangle className="w-5 h-5 text-[#ff8800]" />
                                             <span className="text-white font-bold text-[15px] font-space uppercase tracking-wide">
-                                                Do not release crypto before verifying funds
+                                                {paymentDetails.available
+                                                    ? "Do not release crypto before verifying funds"
+                                                    : "Payment details unavailable — release blocked"}
                                             </span>
                                         </div>
                                         <p className="text-[#C2C7D0] text-[14px] font-space">
-                                             Ensure the buyer&apos;s name on the bank transfer matches their verified profile name (
-                                            <span className="font-bold text-white">{order.buyer?.alias || "Buyer"}</span>
-                                            ). Third-party payments are against our terms of service.
+                                            {paymentDetails.available ? (
+                                                <>
+                                                    Ensure the buyer&apos;s name on the bank transfer matches their verified profile name (
+                                                    <span className="font-bold text-white">{order.buyer?.alias || "Buyer"}</span>
+                                                    ). Third-party payments are against our terms of service.
+                                                </>
+                                            ) : (
+                                                "This order is missing verified payment instructions. Do not release crypto until complete payment details are available."
+                                            )}
                                         </p>
                                     </div>
                                     

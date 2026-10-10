@@ -22,6 +22,7 @@ export interface EvidencePreviewProps {
     canCancel: boolean;
     isCancelling: boolean;
     onCancelOrder: () => void;
+    paymentDetailsAvailable: boolean;
 }
 
 export function EvidencePreview({
@@ -35,7 +36,8 @@ export function EvidencePreview({
     onStatusChange,
     canCancel,
     isCancelling,
-    onCancelOrder
+    onCancelOrder,
+    paymentDetailsAvailable,
 }: EvidencePreviewProps) {
     const { fundEscrow, releaseEscrow, syncEscrow } = useEscrows();
     const { updateOrder } = useOrders();
@@ -75,7 +77,7 @@ export function EvidencePreview({
     };
 
     const handleReleaseAction = async () => {
-        if (isSubmitting || !sellerAddress || !escrowId) return;
+        if (isSubmitting || !sellerAddress || !escrowId || !paymentDetailsAvailable) return;
         setIsSubmitting(true);
         try {
             const res = await releaseEscrow({ escrowId, releaseSigner: sellerAddress });
@@ -114,6 +116,10 @@ export function EvidencePreview({
                 await updateOrder({ orderStatus: "locked" }, orderId);
                 notify("success", "Escrow funded successfully on-chain!");
             } else {
+                if (!paymentDetailsAvailable) {
+                    setPendingAction(null);
+                    return;
+                }
                 await syncEscrow({ escrowId, action: "release", signedXdr });
                 await updateOrder({ orderStatus: "released" }, orderId);
                 notify("success", "Crypto released successfully!");
@@ -298,17 +304,24 @@ export function EvidencePreview({
                     <button 
                         type="button" 
                         onClick={handleReleaseAction}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !paymentDetailsAvailable}
+                        aria-describedby={!paymentDetailsAvailable ? "missing-payment-details" : undefined}
                         className="bg-[#55D6BE] w-full h-[56px] text-[#081521] font-extrabold text-[16px] leading-[24px] rounded-[12px] hover:bg-[#38B99F] uppercase transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 tracking-[-0.4px]"
                     >
                         {isSubmitting ? <Loader2 className="w-5 h-5 text-[#081521] animate-spin" /> : <CircleCheck className="w-5 h-5 text-[#081521] stroke-[3px]" />}
-                        {isSubmitting ? "PROCESSING..." : "RELEASE CRYPTO"}
+                        {isSubmitting ? "PROCESSING..." : paymentDetailsAvailable ? "RELEASE CRYPTO" : "PAYMENT DETAILS REQUIRED"}
                     </button>
                 ) : escrowStatus === "released" ? (
                     <div role="status" className="bg-[#55D6BE]/10 border border-[#55D6BE]/30 w-full h-[56px] rounded-[12px] flex items-center justify-center">
                         <span className="text-[#55D6BE] font-bold text-[16px] leading-[24px] uppercase tracking-[-0.4px]">COMPLETED!</span>
                     </div>
                 ) : null}
+
+                {!paymentDetailsAvailable && escrowStatus === "fiat_sent" && (
+                    <p id="missing-payment-details" role="alert" className="text-center text-[12px] font-semibold text-[#FFB454]">
+                        Crypto release is disabled until verified payment details are available.
+                    </p>
+                )}
 
                 {/* Cancel Action Button */}
                 {escrowStatus !== "released" && (

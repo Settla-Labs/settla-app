@@ -4,6 +4,7 @@ import type {
     SecuritySettingsResult,
     UserSession,
 } from "../types/security-settings.types";
+import { SECURITY_PREFERENCE_DEFAULTS } from "../constants/security-preference-defaults";
 
 function getApiBaseUrl(): string {
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -59,6 +60,18 @@ export const securitySettingsService = {
                 };
             }
             throw await getResponseError(res, "Failed to load security settings");
+            if (!res.ok) {
+                // If endpoint doesn't exist yet or fails, fallback to defaults/stored prefs
+                return SECURITY_PREFERENCE_DEFAULTS;
+            }
+
+            const data = (await res.json()) as Partial<SecurityPreferences>;
+            return {
+                ...SECURITY_PREFERENCE_DEFAULTS,
+                ...data,
+            };
+        } catch {
+            return SECURITY_PREFERENCE_DEFAULTS;
         }
 
         return {
@@ -91,6 +104,8 @@ export const securitySettingsService = {
                 return {
                     preferences: { ...DEFAULT_PREFERENCES, ...updates },
                     source: "unsupported-fallback",
+                    ...SECURITY_PREFERENCE_DEFAULTS,
+                    ...updates,
                 };
             }
             throw await getResponseError(res, "Failed to update security preferences");
@@ -99,6 +114,8 @@ export const securitySettingsService = {
         return {
             preferences: parsePreferences(await res.json()),
             source: "server",
+            ...SECURITY_PREFERENCE_DEFAULTS,
+            ...data,
         };
     },
 

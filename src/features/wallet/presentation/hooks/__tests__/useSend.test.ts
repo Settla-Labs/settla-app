@@ -136,7 +136,7 @@ describe("useSend hook", () => {
     expect(result.current.state.errorMessage).toBe("Insufficient balance for fee");
   });
 
-  it("handles prepare response missing XDR", async () => {
+  it("rejects a prepare response missing the documented xdr field", async () => {
     const mockRecipient = {
       address: "GRECIPIENT1234567890123456789012345678901234567890123456",
       alias: null,
@@ -167,7 +167,108 @@ describe("useSend hook", () => {
     });
 
     expect(result.current.state.step).toBe("error");
-    expect(result.current.state.errorMessage).toBe("Server response did not include a transaction to sign.");
+    expect(result.current.state.errorMessage).toBe('Server response did not include a valid "xdr" transaction.');
+  });
+
+  it("does not accept a legacy XDR field in place of the documented contract", async () => {
+    const mockRecipient = {
+      address: "GRECIPIENT1234567890123456789012345678901234567890123456",
+      alias: null,
+      exists: true,
+      hasUsdcTrustline: true,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/send/resolve")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockRecipient) });
+      }
+      if (url.includes("/send/prepare")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ unsignedXdr: "AAAA_LEGACY_XDR" }),
+        });
+      }
+      return Promise.reject(new Error("Unexpected"));
+    });
+
+    const { result } = renderHook(() => useSend());
+
+    await act(async () => {
+      await result.current.resolveAndPrepare(mockRecipient.address, "10.00");
+    });
+
+    expect(result.current.state.step).toBe("error");
+    expect(result.current.state.errorMessage).toBe(
+      'Server response did not include a valid "xdr" transaction.',
+    );
+    expect(mockSignTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects an ambiguous prepare response with multiple transaction fields", async () => {
+    const mockRecipient = {
+      address: "GRECIPIENT1234567890123456789012345678901234567890123456",
+      alias: null,
+      exists: true,
+      hasUsdcTrustline: true,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/send/resolve")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockRecipient) });
+      }
+      if (url.includes("/send/prepare")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            xdr: "AAAA_DOCUMENTED_XDR",
+            unsignedXdr: "AAAA_DIFFERENT_XDR",
+          }),
+        });
+      }
+      return Promise.reject(new Error("Unexpected"));
+    });
+
+    const { result } = renderHook(() => useSend());
+
+    await act(async () => {
+      await result.current.resolveAndPrepare(mockRecipient.address, "10.00");
+    });
+
+    expect(result.current.state.step).toBe("error");
+    expect(result.current.state.errorMessage).toBe(
+      "Server response included multiple transaction fields and was rejected.",
+    );
+    expect(mockSignTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-string xdr", async () => {
+    const mockRecipient = {
+      address: "GRECIPIENT1234567890123456789012345678901234567890123456",
+      alias: null,
+      exists: true,
+      hasUsdcTrustline: true,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/send/resolve")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockRecipient) });
+      }
+      if (url.includes("/send/prepare")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ xdr: 1234 }) });
+      }
+      return Promise.reject(new Error("Unexpected"));
+    });
+
+    const { result } = renderHook(() => useSend());
+
+    await act(async () => {
+      await result.current.resolveAndPrepare(mockRecipient.address, "10.00");
+    });
+
+    expect(result.current.state.step).toBe("error");
+    expect(result.current.state.errorMessage).toBe(
+      'Server response did not include a valid "xdr" transaction.',
+    );
   });
 
   it("signs and submits transaction successfully", async () => {

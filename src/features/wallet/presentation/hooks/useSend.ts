@@ -29,6 +29,45 @@ export interface SendState {
   errorMessage: string | null;
 }
 
+interface PreparedTransactionResponse {
+  xdr: string;
+  fee: string | null;
+}
+
+// `/send/prepare` has one supported transaction field. The legacy names are
+// inspected only so an ambiguous payload is rejected rather than guessed at.
+const PREPARED_XDR_FIELD = "xdr" as const;
+const LEGACY_PREPARED_XDR_FIELDS = [
+  "unsignedXdr",
+  "txXdr",
+  "transaction",
+  "envelope",
+] as const;
+
+function decodePreparedTransaction(payload: unknown): PreparedTransactionResponse {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error('Server response did not include a valid "xdr" transaction.');
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidateFields = [PREPARED_XDR_FIELD, ...LEGACY_PREPARED_XDR_FIELDS]
+    .filter(field => Object.prototype.hasOwnProperty.call(record, field));
+
+  if (candidateFields.length > 1) {
+    throw new Error("Server response included multiple transaction fields and was rejected.");
+  }
+
+  const xdr = record[PREPARED_XDR_FIELD];
+  if (candidateFields[0] !== PREPARED_XDR_FIELD || typeof xdr !== "string" || !xdr.trim()) {
+    throw new Error('Server response did not include a valid "xdr" transaction.');
+  }
+
+  return {
+    xdr,
+    fee: typeof record.fee === "string" ? record.fee : null,
+  };
+}
+
 export function useSend() {
   const { accessToken } = useUser();
   const { signTransaction } = useWallet();
@@ -80,15 +119,9 @@ export function useSend() {
           const body = await prepareRes.json().catch(() => ({}));
           throw new Error((body as { message?: string })?.message ?? "Failed to prepare transaction");
         }
-        const prepared = await prepareRes.json() as Record<string, string>;
+        const prepared = decodePreparedTransaction(await prepareRes.json());
 
-        const xdr = prepared.xdr ?? prepared.unsignedXdr ?? prepared.txXdr ?? prepared.transaction ?? prepared.envelope ?? null;
-        if (!xdr) {
-          console.error("[useSend] prepare response missing XDR field:", prepared);
-          throw new Error("Server response did not include a transaction to sign.");
-        }
-
-        preparedXdrRef.current = xdr;
+        preparedXdrRef.current = prepared.xdr;
         setState(s => ({ ...s, step: "confirm", recipient, fee: prepared.fee ?? null }));
       } catch (err) {
         setState(s => ({

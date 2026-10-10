@@ -35,14 +35,16 @@ export function useRecentSessions() {
     const [sessions, setSessions] = useState<UserSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isFallback, setIsFallback] = useState(false);
 
     const loadSessions = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await securitySettingsService.getRecentSessions(accessToken);
-            if (data.length > 0) {
-                setSessions(data);
+            const result = await securitySettingsService.getRecentSessions(accessToken);
+            setIsFallback(result.source === "unsupported-fallback");
+            if (result.sessions.length > 0) {
+                setSessions(result.sessions);
             } else if (isConnected || currentUser) {
                 // If user is active/connected, generate current session indicator
                 const { device, browser } = getBrowserAndDevice();
@@ -60,6 +62,8 @@ export function useRecentSessions() {
                 setSessions([]);
             }
         } catch (err) {
+            setSessions([]);
+            setIsFallback(false);
             const msg = err instanceof Error ? err.message : "Failed to load recent sessions";
             setError(msg);
         } finally {
@@ -75,6 +79,7 @@ export function useRecentSessions() {
         sessions,
         isLoading,
         error,
+        isFallback,
         reload: loadSessions,
     };
 }

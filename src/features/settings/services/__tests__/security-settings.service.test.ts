@@ -28,8 +28,9 @@ describe("securitySettingsService", () => {
                 headers: { Authorization: "Bearer test-jwt" },
             }),
         );
-        expect(result.loginAlerts).toBe(false);
-        expect(result.emailNotifications).toBe(true);
+        expect(result.source).toBe("server");
+        expect(result.preferences.loginAlerts).toBe(false);
+        expect(result.preferences.emailNotifications).toBe(true);
     });
 
     it("patches security settings", async () => {
@@ -61,7 +62,8 @@ describe("securitySettingsService", () => {
                 body: JSON.stringify({ emailNotifications: true }),
             }),
         );
-        expect(result.emailNotifications).toBe(true);
+        expect(result.source).toBe("server");
+        expect(result.preferences.emailNotifications).toBe(true);
     });
 
     it("fetches recent sessions", async () => {
@@ -89,7 +91,55 @@ describe("securitySettingsService", () => {
                 headers: { Authorization: "Bearer test-jwt" },
             }),
         );
-        expect(result).toHaveLength(1);
-        expect(result[0].id).toBe("s1");
+        expect(result.source).toBe("server");
+        expect(result.sessions).toHaveLength(1);
+        expect(result.sessions[0].id).toBe("s1");
+    });
+
+    it.each([401, 500])("surfaces a %i security-settings failure", async (status) => {
+        global.fetch = vi.fn().mockResolvedValueOnce(
+            new Response("settings unavailable", { status }),
+        );
+
+        await expect(
+            securitySettingsService.getSecuritySettings("test-jwt"),
+        ).rejects.toThrow("settings unavailable");
+    });
+
+    it("marks an unimplemented security-settings endpoint as an explicit fallback", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 501 }));
+
+        const result = await securitySettingsService.getSecuritySettings("test-jwt");
+
+        expect(result.source).toBe("unsupported-fallback");
+        expect(result.preferences.securityUpdates).toBe(true);
+    });
+
+    it("rejects a malformed security-settings body", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(
+            Response.json({ loginAlerts: "yes" }, { status: 200 }),
+        );
+
+        await expect(
+            securitySettingsService.getSecuritySettings("test-jwt"),
+        ).rejects.toThrow("Invalid security settings response");
+    });
+
+    it("surfaces recent-session failures instead of returning an empty history", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(
+            new Response("sessions unavailable", { status: 500 }),
+        );
+
+        await expect(
+            securitySettingsService.getRecentSessions("test-jwt"),
+        ).rejects.toThrow("sessions unavailable");
+    });
+
+    it("marks an unimplemented sessions endpoint as an explicit fallback", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+        const result = await securitySettingsService.getRecentSessions("test-jwt");
+
+        expect(result).toEqual({ sessions: [], source: "unsupported-fallback" });
     });
 });

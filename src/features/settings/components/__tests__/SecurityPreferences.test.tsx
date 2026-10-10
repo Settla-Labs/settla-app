@@ -25,6 +25,7 @@ describe("SecurityPreferences", () => {
             },
             isLoading: false,
             error: null,
+            isFallback: false,
             updatingKeys: {},
             updatePreference: mockUpdatePreference,
             reload: vi.fn(),
@@ -56,6 +57,7 @@ describe("SecurityPreferences", () => {
             },
             isLoading: false,
             error: null,
+            isFallback: false,
             updatingKeys: {},
             updatePreference: mockUpdatePreference,
             reload: vi.fn(),
@@ -67,5 +69,54 @@ describe("SecurityPreferences", () => {
         fireEvent.click(txToggle);
 
         expect(mockUpdatePreference).toHaveBeenCalledWith("transactionNotifications", true);
+    });
+
+    it("shows a retryable error instead of default-looking toggles", () => {
+        const reload = vi.fn();
+        vi.spyOn(securityHooksModule, "useSecuritySettings").mockReturnValue({
+            preferences: {
+                securityUpdates: true,
+                loginAlerts: true,
+                transactionNotifications: true,
+                escrowStatusUpdates: true,
+                emailNotifications: false,
+            },
+            isLoading: false,
+            error: "Failed to load security settings (500)",
+            isFallback: false,
+            updatingKeys: {},
+            updatePreference: mockUpdatePreference,
+            reload,
+        });
+
+        render(<SecurityPreferences />);
+
+        expect(screen.getByRole("alert").textContent).toContain("Failed to load");
+        expect(screen.queryAllByRole("switch")).toHaveLength(0);
+        fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("labels unsupported-endpoint values as a local fallback", () => {
+        vi.spyOn(securityHooksModule, "useSecuritySettings").mockReturnValue({
+            preferences: {
+                securityUpdates: true,
+                loginAlerts: true,
+                transactionNotifications: true,
+                escrowStatusUpdates: true,
+                emailNotifications: false,
+            },
+            isLoading: false,
+            error: null,
+            isFallback: true,
+            updatingKeys: {},
+            updatePreference: mockUpdatePreference,
+            reload: vi.fn(),
+        });
+
+        render(<SecurityPreferences />);
+
+        expect(screen.getByText(/explicit fallback values are local only/i)).toBeTruthy();
+        expect(screen.getAllByRole("switch")).toHaveLength(5);
     });
 });

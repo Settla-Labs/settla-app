@@ -45,7 +45,7 @@ const PREFERENCE_ITEMS: PreferenceItem[] = [
 ];
 
 export function SecurityPreferences() {
-    const { preferences, isLoading, error, updatingKeys, updatePreference } = useSecuritySettings();
+    const { preferences, isLoading, error, isFallback, updatingKeys, updatePreference, reload } = useSecuritySettings();
 
     return (
         <div className="rounded-xl border border-[#172B3A] bg-[#0E121B]/60 p-6 backdrop-blur-sm">
@@ -73,6 +73,17 @@ export function SecurityPreferences() {
                                 <div className="h-6 w-11 bg-[#172B3A] rounded-full" />
                             </div>
                         ))}
+                    </div>
+                ) : error ? (
+                    <div role="alert" className="my-4 rounded-lg border border-[#EF4444]/20 bg-[#EF4444]/10 p-4 text-sm text-[#F87171]">
+                        <p>{error}</p>
+                        <button
+                            type="button"
+                            onClick={() => void reload()}
+                            className="mt-3 rounded-md border border-[#EF4444]/30 px-3 py-1.5 font-medium text-white"
+                        >
+                            Try again
+                        </button>
                     </div>
                 ) : (
                     PREFERENCE_ITEMS.map(({ key, title, description, icon: Icon }) => {
@@ -130,9 +141,9 @@ export function SecurityPreferences() {
                 )}
             </div>
 
-            {error && (
-                <div className="mt-4 rounded-lg bg-[#EF4444]/10 border border-[#EF4444]/20 p-3 text-xs text-[#F87171]">
-                    {error}
+            {!isLoading && !error && isFallback && (
+                <div className="mt-4 rounded-lg border border-[#F59E0B]/20 bg-[#F59E0B]/10 p-3 text-xs text-[#FBBF24]">
+                    Server-managed preferences are not available yet. These explicit fallback values are local only.
                 </div>
             )}
         </div>

@@ -19,6 +19,7 @@ describe("RecentSessionsList", () => {
             sessions: [],
             isLoading: false,
             error: null,
+            isFallback: false,
             reload: mockReload,
         });
 
@@ -49,6 +50,7 @@ describe("RecentSessionsList", () => {
             ],
             isLoading: false,
             error: null,
+            isFallback: false,
             reload: mockReload,
         });
 
@@ -68,6 +70,7 @@ describe("RecentSessionsList", () => {
             sessions: [],
             isLoading: false,
             error: null,
+            isFallback: false,
             reload: mockReload,
         });
 
@@ -77,5 +80,36 @@ describe("RecentSessionsList", () => {
         fireEvent.click(refreshBtn);
 
         expect(mockReload).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders a retryable error instead of an empty history", () => {
+        vi.spyOn(sessionsHooksModule, "useRecentSessions").mockReturnValue({
+            sessions: [],
+            isLoading: false,
+            error: "Failed to load recent sessions (500)",
+            isFallback: false,
+            reload: mockReload,
+        });
+
+        render(<RecentSessionsList />);
+
+        expect(screen.getByRole("alert").textContent).toContain("Failed to load");
+        expect(screen.queryByText("No recent session activity is available.")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+        expect(mockReload).toHaveBeenCalledTimes(1);
+    });
+
+    it("labels an unsupported sessions endpoint as a local fallback", () => {
+        vi.spyOn(sessionsHooksModule, "useRecentSessions").mockReturnValue({
+            sessions: [],
+            isLoading: false,
+            error: null,
+            isFallback: true,
+            reload: mockReload,
+        });
+
+        render(<RecentSessionsList />);
+
+        expect(screen.getByText(/server session history is not implemented yet/i)).toBeTruthy();
     });
 });

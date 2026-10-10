@@ -1,5 +1,7 @@
 import type {
+    RecentSessionsResult,
     SecurityPreferences,
+    SecuritySettingsResult,
     UserSession,
 } from "../types/security-settings.types";
 
@@ -15,38 +17,60 @@ const DEFAULT_PREFERENCES: SecurityPreferences = {
     emailNotifications: false,
 };
 
-export const securitySettingsService = {
-    async getSecuritySettings(accessToken?: string | null): Promise<SecurityPreferences> {
-        try {
-            const headers: Record<string, string> = {};
-            if (accessToken) {
-                headers["Authorization"] = `Bearer ${accessToken}`;
-            }
+const UNSUPPORTED_STATUSES = new Set([404, 501]);
 
-            const res = await fetch(`${getApiBaseUrl()}/users/me/security-settings`, {
-                method: "GET",
-                headers,
-            });
+async function getResponseError(res: Response, fallback: string): Promise<Error> {
+    const detail = await res.text().catch(() => "");
+    return new Error(detail || `${fallback} (${res.status})`);
+}
 
-            if (!res.ok) {
-                // If endpoint doesn't exist yet or fails, fallback to defaults/stored prefs
-                return DEFAULT_PREFERENCES;
-            }
+function parsePreferences(data: unknown): SecurityPreferences {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new Error("Invalid security settings response");
+    }
 
-            const data = (await res.json()) as Partial<SecurityPreferences>;
-            return {
-                ...DEFAULT_PREFERENCES,
-                ...data,
-            };
-        } catch {
-            return DEFAULT_PREFERENCES;
+    const partial = data as Partial<SecurityPreferences>;
+    for (const key of Object.keys(DEFAULT_PREFERENCES) as Array<keyof SecurityPreferences>) {
+        if (partial[key] !== undefined && typeof partial[key] !== "boolean") {
+            throw new Error("Invalid security settings response");
         }
+    }
+
+    return { ...DEFAULT_PREFERENCES, ...partial };
+}
+
+export const securitySettingsService = {
+    async getSecuritySettings(accessToken?: string | null): Promise<SecuritySettingsResult> {
+        const headers: Record<string, string> = {};
+        if (accessToken) {
+            headers["Authorization"] = `Bearer ${accessToken}`;
+        }
+
+        const res = await fetch(`${getApiBaseUrl()}/users/me/security-settings`, {
+            method: "GET",
+            headers,
+        });
+
+        if (!res.ok) {
+            if (UNSUPPORTED_STATUSES.has(res.status)) {
+                return {
+                    preferences: { ...DEFAULT_PREFERENCES },
+                    source: "unsupported-fallback",
+                };
+            }
+            throw await getResponseError(res, "Failed to load security settings");
+        }
+
+        return {
+            preferences: parsePreferences(await res.json()),
+            source: "server",
+        };
     },
 
     async updateSecuritySettings(
         updates: Partial<SecurityPreferences>,
         accessToken?: string | null,
-    ): Promise<SecurityPreferences> {
+    ): Promise<SecuritySettingsResult> {
         const headers: Record<string, string> = {
             "Content-Type": "application/json",
         };
@@ -61,43 +85,46 @@ export const securitySettingsService = {
         });
 
         if (!res.ok) {
-            // If backend is not available or mock environment, simulate update
-            if (res.status === 404 || res.status === 501) {
+            // Keep the development fallback explicit instead of presenting it
+            // as a response persisted by the server.
+            if (UNSUPPORTED_STATUSES.has(res.status)) {
                 return {
-                    ...DEFAULT_PREFERENCES,
-                    ...updates,
+                    preferences: { ...DEFAULT_PREFERENCES, ...updates },
+                    source: "unsupported-fallback",
                 };
             }
-            const errorText = await res.text().catch(() => "Failed to update security preferences");
-            throw new Error(errorText || "Failed to update security preferences");
+            throw await getResponseError(res, "Failed to update security preferences");
         }
 
-        const data = (await res.json()) as Partial<SecurityPreferences>;
         return {
-            ...DEFAULT_PREFERENCES,
-            ...data,
+            preferences: parsePreferences(await res.json()),
+            source: "server",
         };
     },
 
-    async getRecentSessions(accessToken?: string | null): Promise<UserSession[]> {
-        try {
-            const headers: Record<string, string> = {};
-            if (accessToken) {
-                headers["Authorization"] = `Bearer ${accessToken}`;
-            }
-
-            const res = await fetch(`${getApiBaseUrl()}/users/me/sessions`, {
-                method: "GET",
-                headers,
-            });
-
-            if (!res.ok) {
-                return [];
-            }
-
-            return (await res.json()) as UserSession[];
-        } catch {
-            return [];
+    async getRecentSessions(accessToken?: string | null): Promise<RecentSessionsResult> {
+        const headers: Record<string, string> = {};
+        if (accessToken) {
+            headers["Authorization"] = `Bearer ${accessToken}`;
         }
+
+        const res = await fetch(`${getApiBaseUrl()}/users/me/sessions`, {
+            method: "GET",
+            headers,
+        });
+
+        if (!res.ok) {
+            if (UNSUPPORTED_STATUSES.has(res.status)) {
+                return { sessions: [], source: "unsupported-fallback" };
+            }
+            throw await getResponseError(res, "Failed to load recent sessions");
+        }
+
+        const data: unknown = await res.json();
+        if (!Array.isArray(data)) {
+            throw new Error("Invalid recent sessions response");
+        }
+
+        return { sessions: data as UserSession[], source: "server" };
     },
 };

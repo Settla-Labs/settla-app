@@ -21,15 +21,18 @@ export function useSecuritySettings() {
     const [preferences, setPreferences] = useState<SecurityPreferences>(INITIAL_PREFERENCES);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isFallback, setIsFallback] = useState(false);
     const [updatingKeys, setUpdatingKeys] = useState<Record<string, boolean>>({});
 
     const loadSettings = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await securitySettingsService.getSecuritySettings(accessToken);
-            setPreferences(data);
+            const result = await securitySettingsService.getSecuritySettings(accessToken);
+            setPreferences(result.preferences);
+            setIsFallback(result.source === "unsupported-fallback");
         } catch (err) {
+            setIsFallback(false);
             const msg = err instanceof Error ? err.message : "Failed to load security settings";
             setError(msg);
         } finally {
@@ -51,12 +54,18 @@ export function useSecuritySettings() {
             setUpdatingKeys((prev) => ({ ...prev, [key]: true }));
 
             try {
-                const updated = await securitySettingsService.updateSecuritySettings(
+                const result = await securitySettingsService.updateSecuritySettings(
                     { [key]: value },
                     accessToken,
                 );
-                setPreferences(updated);
-                notify("success", "Security preference updated.");
+                setPreferences(result.preferences);
+                setIsFallback(result.source === "unsupported-fallback");
+                notify(
+                    result.source === "server" ? "success" : "info",
+                    result.source === "server"
+                        ? "Security preference updated."
+                        : "Preference saved locally while server settings are unavailable.",
+                );
             } catch (err) {
                 // Revert on failure
                 setPreferences((prev) => ({ ...prev, [key]: previousValue }));
@@ -77,6 +86,7 @@ export function useSecuritySettings() {
         preferences,
         isLoading,
         error,
+        isFallback,
         updatingKeys,
         updatePreference,
         reload: loadSettings,

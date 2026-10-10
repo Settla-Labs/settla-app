@@ -6,6 +6,13 @@ export interface SecurityPreferences {
     emailNotifications: boolean;
 }
 
+export type SettingsDataSource = "server" | "unsupported-fallback";
+
+export interface SecuritySettingsResult {
+    preferences: SecurityPreferences;
+    source: SettingsDataSource;
+}
+
 export type SessionStatus = "active" | "expired" | "revoked";
 
 export interface UserSession {
@@ -19,4 +26,9 @@ export interface UserSession {
     location?: string;
     isCurrent: boolean;
     status: SessionStatus;
+}
+
+export interface RecentSessionsResult {
+    sessions: UserSession[];
+    source: SettingsDataSource;
 }

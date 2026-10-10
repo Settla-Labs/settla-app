@@ -4,7 +4,7 @@ import { Laptop, Smartphone, Globe, Clock, ShieldCheck, RefreshCw } from "lucide
 import { useRecentSessions } from "../hooks/useRecentSessions";
 
 export function RecentSessionsList() {
-    const { sessions, isLoading, error, reload } = useRecentSessions();
+    const { sessions, isLoading, error, isFallback, reload } = useRecentSessions();
 
     const formatDate = (dateStr: string) => {
         try {
@@ -64,6 +64,17 @@ export function RecentSessionsList() {
                                 <div className="h-6 w-20 bg-[#172B3A] rounded-full" />
                             </div>
                         ))}
+                    </div>
+                ) : error ? (
+                    <div role="alert" className="py-8 text-center text-sm text-[#F87171]">
+                        <p>{error}</p>
+                        <button
+                            type="button"
+                            onClick={() => void reload()}
+                            className="mt-3 rounded-md border border-[#EF4444]/30 px-3 py-1.5 font-medium text-white"
+                        >
+                            Try again
+                        </button>
                     </div>
                 ) : sessions.length === 0 ? (
                     <div className="py-8 text-center text-sm text-[#9BABB7]">
@@ -145,9 +156,9 @@ export function RecentSessionsList() {
                 )}
             </div>
 
-            {error && (
-                <div className="mt-4 rounded-lg bg-[#EF4444]/10 border border-[#EF4444]/20 p-3 text-xs text-[#F87171]">
-                    {error}
+            {!isLoading && !error && isFallback && (
+                <div className="mt-4 rounded-lg border border-[#F59E0B]/20 bg-[#F59E0B]/10 p-3 text-xs text-[#FBBF24]">
+                    Server session history is not implemented yet. Any current-session indicator is derived locally.
                 </div>
             )}
         </div>

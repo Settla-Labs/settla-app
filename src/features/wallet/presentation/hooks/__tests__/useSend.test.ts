@@ -322,7 +322,7 @@ describe("useSend hook", () => {
       await result.current.confirmSend();
     });
 
-    expect(mockSignTransaction).toHaveBeenCalledWith("AAAA_UNSIGNED_XDR", "TESTNET");
+    expect(mockSignTransaction).toHaveBeenCalledExactlyOnceWith("AAAA_UNSIGNED_XDR");
     expect(result.current.state.step).toBe("success");
     expect(result.current.state.txHash).toBe("0xabcdef1234567890abcdef1234567890");
   });

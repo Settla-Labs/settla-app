@@ -72,7 +72,6 @@ export function useSend() {
   const { accessToken } = useUser();
   const { signTransaction } = useWallet();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "TESTNET";
   const preparedXdrRef = useRef<string | null>(null);
 
   const [state, setState] = useState<SendState>({
@@ -145,7 +144,7 @@ export function useSend() {
 
     let signedXdr: string;
     try {
-      signedXdr = await signTransaction(xdr, network);
+      signedXdr = await signTransaction(xdr);
     } catch (err) {
       const msg =
         err instanceof Error ? err.message :
@@ -182,7 +181,7 @@ export function useSend() {
         errorMessage: err instanceof Error ? err.message : "Transaction submission failed",
       }));
     }
-  }, [accessToken, apiUrl, signTransaction, network]);
+  }, [accessToken, apiUrl, signTransaction]);
 
   const reset = useCallback(() => {
     preparedXdrRef.current = null;

@@ -28,7 +28,8 @@ export interface WalletState {
 export interface WalletActions {
     connect: (walletId: string) => Promise<void>;
     disconnect: () => void;
-    signTransaction: (xdr: string, network?: string) => Promise<string>;
+    /** Signs on the configured network; callers cannot override it. */
+    signTransaction: (xdr: string) => Promise<string>;
     checkNetwork: () => Promise<DetectedStellarNetwork>;
 }
 

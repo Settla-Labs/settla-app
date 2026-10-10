@@ -52,8 +52,8 @@ const DISPLAY_DECIMALS = 4;
 
 function formatAmount(value: number): string {
     const factor = 10 ** DISPLAY_DECIMALS;
-    const truncated = Math.trunc(value * factor) / factor;
-    return truncated.toLocaleString("en-US", {
+    const rounded = Math.round(value * factor) / factor;
+    return rounded.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: DISPLAY_DECIMALS,
     });

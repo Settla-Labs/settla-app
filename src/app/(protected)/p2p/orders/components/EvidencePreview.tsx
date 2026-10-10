@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useEscrows } from "@/features/escrow/hooks/useEscrows";
 import { useOrders } from "@/features/order/hooks/useOrders";
 import { isSignatureCancelled } from "@/features/wallet/application/wallet.service";
@@ -8,6 +8,7 @@ import { useSignatureCancellation } from "@/features/wallet/hooks/useSignatureCa
 import { CircleCheck, Loader2, Eye, Search } from "lucide-react";
 import { SignatureCancelledModal } from "../../components/SignatureCancelledModal";
 import { useNotifications } from "@/features/notifications";
+import { useOrderCountdown } from "@/features/order/hooks/useOrderCountdown";
 
 export interface EvidencePreviewProps {
     orderId: string;
@@ -40,34 +41,10 @@ export function EvidencePreview({
     const { updateOrder } = useOrders();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [timeLeft, setTimeLeft] = useState<string>("00:00");
-    const [isExpired, setIsExpired] = useState(false);
+    const { remainingTime, isExpired } = useOrderCountdown(expiresAt);
     const [pendingAction, setPendingAction] = useState<"fund" | "release" | null>(null);
     const { notify } = useNotifications();
     const sig = useSignatureCancellation();
-
-    useEffect(() => {
-        if (!expiresAt) return;
-        const target = new Date(expiresAt).getTime();
-        
-        const updateTimer = () => {
-            const now = Date.now();
-            const diff = target - now;
-            if (diff <= 0) {
-                setTimeLeft("00:00");
-                setIsExpired(true);
-            } else {
-                const m = Math.floor(diff / 60000);
-                const s = Math.floor((diff % 60000) / 1000);
-                setTimeLeft(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-                setIsExpired(false);
-            }
-        };
-        
-        updateTimer();
-        const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
-    }, [expiresAt]);
 
     const handleFundAction = async () => {
         if (isSubmitting || !sellerAddress || !escrowId){
@@ -314,7 +291,7 @@ export function EvidencePreview({
                     ) : (
                         <button type="button" disabled className="bg-[#2A292F] w-full h-[56px] text-[#C2C7D0] font-extrabold text-[16px] leading-[24px] rounded-[12px] uppercase cursor-not-allowed tracking-[-0.4px] flex items-center justify-center gap-2">
                             <span role="status" className="w-2 h-2 rounded-full bg-[#55D6BE] animate-pulse shadow-[0_0_8px_rgba(218,255,0,0.6)]" />
-                            WAITING FOR PAYMENT ({timeLeft})
+                            {remainingTime ? `WAITING FOR PAYMENT (${remainingTime})` : "WAITING FOR PAYMENT"}
                         </button>
                     )
                 ) : escrowStatus === "fiat_sent" ? (

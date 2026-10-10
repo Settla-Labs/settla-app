@@ -20,6 +20,7 @@ import { useNotifications } from "@/features/notifications";
 import { useEscrowStatusSync } from "@/features/escrow/hooks/useEscrowStatusSync";
 import { ArrowLeft, AlertTriangle, Ban, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { useOrderCountdown } from "@/features/order/hooks/useOrderCountdown";
 
 interface PageProps {
     params: Promise<{ orderId: string }>;
@@ -41,6 +42,7 @@ export default function TradePage({ params }: PageProps) {
     const [errorMsg, setErrorMsg] = useState("");
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const { remainingTime, isExpired } = useOrderCountdown(order?.expiresAt);
 
     // Demo orders are only fabricated when the demo flag is on. With the flag
     // off (production), /demo and mock-* ids fall through to the real order
@@ -318,12 +320,12 @@ export default function TradePage({ params }: PageProps) {
                                                     </span>
                                                 </div>
                                                 <span className="text-[#9CA3AF] text-[13px] font-space font-medium uppercase tracking-wider">
-                                                    Order #{order.orderId?.split("-")[0]?.toUpperCase() || "P2P-B829"}
+                                                    Order #{order.orderId.split("-")[0].toUpperCase()}
                                                 </span>
                                             </div>
                                             <div className="flex flex-col items-end justify-center">
                                                 <span className="text-white font-black text-[28px] font-space leading-none tracking-wide">
-                                                    14:52
+                                                    {isExpired ? "EXPIRED" : (remainingTime ?? "—")}
                                                 </span>
                                                 <span className="text-[#9CA3AF] text-[10px] font-bold uppercase tracking-[1px] font-space mt-1">
                                                     REMAINING TIME

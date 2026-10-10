@@ -12,7 +12,7 @@ export const queryKeys = {
     paymentMethods: {
         all: ['paymentMethods'] as const,
         detail: (id: string) => ['paymentMethods', id] as const,
-        providers: ['paymentProviders'] as const,
+        providers: ['paymentMethods', 'providers'] as const,
     },
     users: {
         all: ['users'] as const,

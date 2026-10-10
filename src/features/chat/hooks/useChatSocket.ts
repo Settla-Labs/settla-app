@@ -50,6 +50,7 @@ export function useChatSocket({
 
         let active = true;
         const socket = createChatSocket(accessToken);
+        if (!socket) return;
         let connectionErrorNotified = false;
         socketRef.current = socket;
         queueMicrotask(() => {

@@ -5,20 +5,13 @@ import { useUser } from "@/features/user/presentation/context/UserContext";
 import { useNotifications } from "@/features/notifications";
 import { securitySettingsService } from "../services/security-settings.service";
 import type { SecurityPreferences } from "../types/security-settings.types";
-
-const INITIAL_PREFERENCES: SecurityPreferences = {
-    securityUpdates: true,
-    loginAlerts: true,
-    transactionNotifications: true,
-    escrowStatusUpdates: true,
-    emailNotifications: false,
-};
+import { SECURITY_PREFERENCE_DEFAULTS } from "../constants/security-preference-defaults";
 
 export function useSecuritySettings() {
     const { accessToken } = useUser();
     const { notify } = useNotifications();
 
-    const [preferences, setPreferences] = useState<SecurityPreferences>(INITIAL_PREFERENCES);
+    const [preferences, setPreferences] = useState<SecurityPreferences>(SECURITY_PREFERENCE_DEFAULTS);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isFallback, setIsFallback] = useState(false);

@@ -199,6 +199,52 @@ describe("useEscrowStatusSync", () => {
         ).toBe(callCountBefore);
     });
 
+    it("refreshes once after a terminal status without restarting polling", async () => {
+        const refreshedTerminalEvent: EscrowStatusEvent = {
+            ...terminalEvent,
+            eventId: "evt-003",
+            updatedAt: "2026-08-29T12:01:00.000Z",
+        };
+
+        (fetch as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => terminalEvent,
+            } as Response)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => refreshedTerminalEvent,
+            } as Response);
+
+        const onStatusChange = vi.fn();
+        const { result } = renderHook(() =>
+            useEscrowStatusSync({ ...baseOptions, onStatusChange }),
+        );
+
+        await waitFor(() => {
+            expect(onStatusChange).toHaveBeenCalledWith(terminalEvent);
+        });
+
+        act(() => {
+            result.current.refresh();
+        });
+
+        await waitFor(() => {
+            expect(fetch).toHaveBeenCalledTimes(2);
+            expect(onStatusChange).toHaveBeenLastCalledWith(
+                refreshedTerminalEvent,
+            );
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(30_000);
+        });
+
+        expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
     it("returns the current status after a status event", async () => {
         (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
             ok: true,
@@ -334,18 +380,37 @@ describe("useEscrowStatusSync", () => {
     });
 
     it("aborts in-flight fetch on unmount", async () => {
-        // Never resolve the fetch so we can test abort.
+        let resolveRequest!: (response: Response) => void;
         (fetch as ReturnType<typeof vi.fn>).mockReturnValue(
-            new Promise(() => {}),
+            new Promise<Response>((resolve) => {
+                resolveRequest = resolve;
+            }),
         );
+        const onStatusChange = vi.fn();
 
         const { unmount } = renderHook(() =>
-            useEscrowStatusSync(baseOptions),
+            useEscrowStatusSync({ ...baseOptions, onStatusChange }),
         );
+
+        await waitFor(() => {
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+        const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
+        const signal = requestInit.signal as AbortSignal;
 
         unmount();
 
-        // No error should be thrown — the abort is handled gracefully.
+        expect(signal.aborted).toBe(true);
+
+        await act(async () => {
+            resolveRequest({
+                ok: true,
+                status: 200,
+                json: async () => baseEvent,
+            } as Response);
+        });
+
+        expect(onStatusChange).not.toHaveBeenCalled();
     });
 
     /* ── Disabled / missing params ─────────────────────────────────── */

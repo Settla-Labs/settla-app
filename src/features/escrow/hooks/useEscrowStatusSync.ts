@@ -64,6 +64,7 @@ export function useEscrowStatusSync({
     const seenKeysRef = useRef<Set<string>>(new Set());
     const isPollingRef = useRef(false);
     const mountedRef = useRef(true);
+    const stoppedRef = useRef(false);
     const onStatusChangeRef = useRef(onStatusChange);
     const currentStatusRef = useRef<EscrowStatus | null>(null);
 
@@ -77,6 +78,34 @@ export function useEscrowStatusSync({
     }, [currentStatus]);
 
     /* ── Helpers ────────────────────────────────────────────────── */
+
+    /** Stop background work without treating a terminal status as an unmount. */
+    const stopAutomaticSync = useCallback(() => {
+        stoppedRef.current = true;
+
+        if (pollTimerRef.current !== null) {
+            clearTimeout(pollTimerRef.current);
+            pollTimerRef.current = null;
+        }
+
+        abortRef.current?.abort();
+        abortRef.current = null;
+
+        const socket = socketRef.current;
+        if (socket) {
+            if (socket.connected) {
+                socket.emit("unsubscribe-order", { orderId });
+            }
+            socket.removeAllListeners();
+            socket.disconnect();
+            socketRef.current = null;
+        }
+    }, [orderId]);
+
+    const cleanupAll = useCallback(() => {
+        mountedRef.current = false;
+        stopAutomaticSync();
+    }, [stopAutomaticSync]);
 
     /** Process an incoming event through dedup before notifying. */
     const processEvent = useCallback((event: EscrowStatusEvent) => {
@@ -96,19 +125,21 @@ export function useEscrowStatusSync({
 
         // Stop syncing if terminal.
         if (isTerminalStatus(event.status)) {
-            cleanupAll();
+            stopAutomaticSync();
         }
-    }, []);
+    }, [stopAutomaticSync]);
 
     /* ── Polling ────────────────────────────────────────────────── */
 
-    const pollStatus = useCallback(async () => {
+    const pollStatus = useCallback(async (force = false) => {
         if (
             !mountedRef.current ||
             !escrowId ||
             isPollingRef.current ||
-            (currentStatusRef.current !== null &&
-                isTerminalStatus(currentStatusRef.current))
+            (!force &&
+                (stoppedRef.current ||
+                    (currentStatusRef.current !== null &&
+                        isTerminalStatus(currentStatusRef.current))))
         ) {
             return;
         }
@@ -179,12 +210,13 @@ export function useEscrowStatusSync({
 
     /** Schedule the next poll (steady-state interval). */
     const schedulePoll = useCallback(() => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || stoppedRef.current) return;
         if (pollTimerRef.current !== null) {
             clearTimeout(pollTimerRef.current);
         }
         pollTimerRef.current = setTimeout(() => {
             pollTimerRef.current = null;
+            if (!mountedRef.current || stoppedRef.current) return;
             pollStatus();
             schedulePoll();
         }, nextPollDelay());
@@ -193,7 +225,14 @@ export function useEscrowStatusSync({
     /* ── WebSocket ──────────────────────────────────────────────── */
 
     const connectSocket = useCallback(() => {
-        if (!accessToken || !orderId || socketRef.current) return;
+        if (
+            !accessToken ||
+            !orderId ||
+            stoppedRef.current ||
+            socketRef.current
+        ) {
+            return;
+        }
 
         let socket: EscrowSocket | null = null;
         try {
@@ -288,6 +327,7 @@ export function useEscrowStatusSync({
 
     useEffect(() => {
         mountedRef.current = true;
+        stoppedRef.current = false;
 
         if (!enabled || !escrowId) return;
 
@@ -301,43 +341,15 @@ export function useEscrowStatusSync({
         schedulePoll();
 
         return () => {
-            mountedRef.current = false;
             cleanupAll();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId, escrowId, enabled]);
 
-    /* ── Teardown ───────────────────────────────────────────────── */
-
-    function cleanupAll() {
-        mountedRef.current = false;
-
-        // Polling timer.
-        if (pollTimerRef.current !== null) {
-            clearTimeout(pollTimerRef.current);
-            pollTimerRef.current = null;
-        }
-
-        // In-flight fetch.
-        abortRef.current?.abort();
-        abortRef.current = null;
-
-        // WebSocket.
-        const socket = socketRef.current;
-        if (socket) {
-            if (socket.connected) {
-                socket.emit("unsubscribe-order", { orderId });
-            }
-            socket.removeAllListeners();
-            socket.disconnect();
-            socketRef.current = null;
-        }
-    }
-
     /* ── Manual refresh (e.g. after a user action) ──────────────── */
     const refresh = useCallback(() => {
         seenKeysRef.current.clear();
-        pollStatus();
+        pollStatus(true);
     }, [pollStatus]);
 
     return {
